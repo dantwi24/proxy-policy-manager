@@ -13,7 +13,8 @@ export default {
       colors: {
         background: {
           DEFAULT: "hsl(var(--background))",
-          light: "hsl(220 14% 96%)"  // Light grey background
+          light: "hsl(20 2% 50%)",
+          //light: "hsl(220 14% 96%)"  // Light grey background
         },
         foreground: "hsl(var(--foreground))",
         card: {
