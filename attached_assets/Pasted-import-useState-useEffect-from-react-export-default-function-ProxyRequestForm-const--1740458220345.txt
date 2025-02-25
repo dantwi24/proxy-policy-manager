@@ -1,0 +1,82 @@
+import { useState, useEffect } from "react";
+
+export default function ProxyRequestForm() {
+  const [requests, setRequests] = useState([]);
+  const [formData, setFormData] = useState({
+    action: "add",
+    environment: "Cloud",
+    policy: "",
+    source: "",
+    destinations: "",
+    notes: "",
+    jira: ""
+  });
+  const [selectedRequest, setSelectedRequest] = useState(null);
+
+  useEffect(() => {
+    const savedRequests = JSON.parse(localStorage.getItem("proxyRequests")) || [];
+    setRequests(savedRequests);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("draftRequest", JSON.stringify(formData));
+  }, [formData]);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const newRequests = [...requests, formData];
+    setRequests(newRequests);
+    localStorage.setItem("proxyRequests", JSON.stringify(newRequests));
+    setFormData({ action: "add", environment: "Cloud", policy: "", source: "", destinations: "", notes: "", jira: "" });
+  };
+
+  const handleSelectRequest = (index) => {
+    setSelectedRequest(requests[index]);
+  };
+
+  return (
+    <div className="p-4 max-w-lg mx-auto bg-gray-900 text-white">
+      <h2 className="text-xl font-bold mb-4">Proxy Policy Change Request</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <select name="action" value={formData.action} onChange={handleChange} className="w-full p-2 border rounded bg-gray-800 text-white">
+          <option value="add">Add</option>
+          <option value="remove">Remove</option>
+          <option value="modify">Modify</option>
+        </select>
+        <select name="environment" value={formData.environment} onChange={handleChange} className="w-full p-2 border rounded bg-gray-800 text-white">
+          <option value="Cloud">Cloud</option>
+          <option value="On-Prem">On-Prem</option>
+        </select>
+        <input type="text" name="policy" placeholder="Policy Name" value={formData.policy} onChange={handleChange} className="w-full p-2 border rounded bg-gray-800 text-white" required />
+        <input type="text" name="source" placeholder="Source (optional)" value={formData.source} onChange={handleChange} className="w-full p-2 border rounded bg-gray-800 text-white" />
+        <textarea name="destinations" placeholder="Destinations" value={formData.destinations} onChange={handleChange} className="w-full p-2 border rounded bg-gray-800 text-white" required></textarea>
+        <textarea name="notes" placeholder="Notes" value={formData.notes} onChange={handleChange} className="w-full p-2 border rounded bg-gray-800 text-white"></textarea>
+        <input type="text" name="jira" placeholder="JIRA Story #" value={formData.jira} onChange={handleChange} className="w-full p-2 border rounded bg-gray-800 text-white" />
+        <button type="submit" className="w-full p-2 bg-blue-500 text-white rounded">Submit Request</button>
+      </form>
+      <h3 className="text-lg font-bold mt-6">Past Requests</h3>
+      <ul className="mt-2 space-y-2">
+        {requests.map((req, index) => (
+          <li key={index} className="p-2 border rounded bg-gray-800 text-white cursor-pointer" onClick={() => handleSelectRequest(index)}>
+            {req.action} to {req.environment} - {req.policy} (JIRA: {req.jira})
+          </li>
+        ))}
+      </ul>
+      {selectedRequest && (
+        <div className="mt-4 p-4 border rounded bg-gray-800 text-white">
+          <h3 className="text-lg font-bold">JIRA Story #: {selectedRequest.jira}</h3>
+          <p><strong>Action:</strong> {selectedRequest.action}</p>
+          <p><strong>Environment:</strong> {selectedRequest.environment}</p>
+          <p><strong>Policy:</strong> {selectedRequest.policy}</p>
+          <p><strong>Source:</strong> {selectedRequest.source}</p>
+          <p><strong>Destinations:</strong> {selectedRequest.destinations}</p>
+          <p><strong>Notes:</strong> {selectedRequest.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
