@@ -31,11 +31,13 @@ export default function ProxyRequestForm() {
 
   const statusOptions = [
     { value: "pending", label: "Pending", color: "bg-yellow-500" },
-    { value: "in-review", label: "In Review", color: "bg-blue-500" },
-    { value: "approved", label: "Approved", color: "bg-green-500" },
-    { value: "rejected", label: "Rejected", color: "bg-red-500" },
-    { value: "implemented", label: "Implemented", color: "bg-purple-500" }
+    { value: "implemented", label: "Implemented", color: "bg-green-500" }
   ];
+
+  const getJiraUrl = (jiraId: string) => {
+    // Assuming JIRA IDs are in the format "PROJ-123"
+    return `https://jira.company.com/browse/${jiraId}`;
+  };
 
   useEffect(() => {
     const savedRequests = localStorage.getItem("proxyRequests");
@@ -129,7 +131,19 @@ export default function ProxyRequestForm() {
             <div className="flex justify-between items-start mb-2">
               <div className="cursor-pointer" onClick={() => handleSelectRequest(index)}>
                 <p className="font-medium">{req.action} to {req.environment} - {req.policy}</p>
-                <p className="text-sm">JIRA: {req.jira}</p>
+                <p className="text-sm">
+                  JIRA: {req.jira && (
+                    <a 
+                      href={getJiraUrl(req.jira)} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {req.jira}
+                    </a>
+                  )}
+                </p>
               </div>
               <select
                 value={req.status}
@@ -158,7 +172,19 @@ export default function ProxyRequestForm() {
               {statusOptions.find(opt => opt.value === selectedRequest.status)?.label || "Unknown"}
             </Badge>
           </div>
-          <p><strong>JIRA Story #:</strong> {selectedRequest.jira}</p>
+          <p>
+            <strong>JIRA Story #:</strong>{" "}
+            {selectedRequest.jira && (
+              <a 
+                href={getJiraUrl(selectedRequest.jira)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                {selectedRequest.jira}
+              </a>
+            )}
+          </p>
           <p><strong>Action:</strong> {selectedRequest.action}</p>
           <p><strong>Environment:</strong> {selectedRequest.environment}</p>
           <p><strong>Policy:</strong> {selectedRequest.policy}</p>
