@@ -41,7 +41,7 @@ export default function ProxyRequestForm() {
     history: [],
   });
   const handleSubmitdate = () => {
-    setFormData(prevState => ({
+    setFormData((prevState) => ({
       ...prevState,
       submittedAt: new Date().toISOString(),
     }));
@@ -205,7 +205,8 @@ export default function ProxyRequestForm() {
       statusOptions.find((opt) => opt.value === status)?.color || "bg-gray-500"
     );
   };
-
+  
+/**
   const groupRequestsByMonth = (requests: ProxyRequest[]) => {
     const grouped = requests.reduce(
       (acc, request) => {
@@ -227,7 +228,27 @@ export default function ProxyRequestForm() {
       return dateB.getTime() - dateA.getTime();
     });
   };
+*/
 
+  const groupRequestsByMonth = (requests: ProxyRequest[]) => {
+    const grouped = requests.reduce((acc, request) => {
+      const date = new Date(request.createdAt);
+      const monthYear = date.toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+      });
+      if (!acc[monthYear]) {
+        acc[monthYear] = [];
+      }
+      acc[monthYear].push(request);
+      return acc;
+    }, {} as Record<string, ProxyRequest[]>);
+
+    return Object.entries(grouped).sort(([a], [b]) =>
+      new Date(b).getTime() - new Date(a).getTime()
+    );
+  };
+  
   const filteredRequests = requests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -251,11 +272,14 @@ export default function ProxyRequestForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <select
           name="action"
-          placeholder="Select Action"
           value={formData.action}
           onChange={handleChange}
           className="w-full p-2 border rounded bg-background text-foreground"
         >
+          <option value="" disabled>
+            Select Action
+          </option>{" "}
+          {/* Placeholder option */}
           <option value="add">Add</option>
           <option value="remove">Remove</option>
           <option value="modify">Modify</option>
@@ -263,11 +287,14 @@ export default function ProxyRequestForm() {
         </select>
         <select
           name="environment"
-          placeholder="Environment"
           value={formData.environment}
           onChange={handleChange}
           className="w-full p-2 border rounded bg-background text-foreground"
         >
+          <option value="" disabled>
+            Environment
+          </option>{" "}
+          {/* Placeholder option */}
           <option value="Cloud">Sophos</option>
           <option value="Ent Proxy/Cloud SWG">Ent Proxy/Cloud SWG</option>
         </select>
