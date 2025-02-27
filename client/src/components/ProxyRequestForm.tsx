@@ -1,15 +1,18 @@
+
 import { useState, useEffect } from "react";
-import { v4 as uuidv4 } from 'uuid'; // Import UUID for unique id generation
+import { v4 as uuidv4 } from 'uuid';
+import { Textarea } from "./ui/textarea";
 
 // Enum for Status
 enum Status {
   Pending = "Pending",
   Approved = "Approved",
-  Denied = "Denied",
+  Rejected = "Rejected",
+  InProgress = "In Progress"
 }
 
-// Interface for ProxyRequest
-interface ProxyRequest {
+// Interface for Request
+interface RequestData {
   id: string;
   action: string;
   environment: string;
@@ -24,9 +27,10 @@ interface ProxyRequest {
   history: any[];
 }
 
-const App = () => {
-  const [formData, setFormData] = useState<ProxyRequest>({
-    id: uuidv4(), // Use UUID for the initial ID
+export default function ProxyRequestForm() {
+  const [requests, setRequests] = useState<RequestData[]>([]);
+  const [formData, setFormData] = useState<RequestData>({
+    id: uuidv4(),
     action: "add",
     environment: "Cloud",
     policy: "",
@@ -37,31 +41,15 @@ const App = () => {
     status: Status.Pending,
     createdAt: new Date().toISOString(),
     submittedAt: new Date().toISOString(),
-    history: [],
+    history: []
   });
 
-  const [requests, setRequests] = useState<ProxyRequest[]>([]);
-
-  // Load existing proxy requests from localStorage
-  useEffect(() => {
-    const storedRequests = localStorage.getItem("proxyRequests");
-    if (storedRequests) {
-      setRequests(JSON.parse(storedRequests));
-    }
-  }, []);
-
-  // Save requests to localStorage whenever requests state changes
-  useEffect(() => {
-    if (requests.length > 0) {
-      localStorage.setItem("proxyRequests", JSON.stringify(requests));
-    }
-  }, [requests]);
-
-  // Handling form changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle form field changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value
     });
   };
 
@@ -91,87 +79,119 @@ const App = () => {
   return (
     <div>
       <h1>Proxy Policy Change Requests</h1>
-
-      <form onSubmit={handleSubmit}>
-        <label>
-          Action:
-          <input
-            type="text"
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="action">Action:</label>
+          <select
+            id="action"
             name="action"
             value={formData.action}
             onChange={handleChange}
-          />
-        </label>
-        <label>
-          Environment:
-          <input
-            type="text"
+            className="ml-2 p-2 border rounded"
+          >
+            <option value="add">Add</option>
+            <option value="remove">Remove</option>
+            <option value="modify">Modify</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="environment">Environment:</label>
+          <select
+            id="environment"
             name="environment"
             value={formData.environment}
             onChange={handleChange}
-          />
-        </label>
-        <label>
-          Policy:
+            className="ml-2 p-2 border rounded"
+          >
+            <option value="Cloud">Cloud</option>
+            <option value="On-Premise">On-Premise</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="policy">Policy:</label>
           <input
             type="text"
+            id="policy"
             name="policy"
             value={formData.policy}
             onChange={handleChange}
+            className="ml-2 p-2 border rounded"
           />
-        </label>
-        <label>
-          Source:
+        </div>
+
+        <div>
+          <label htmlFor="source">Source:</label>
           <input
             type="text"
+            id="source"
             name="source"
             value={formData.source}
             onChange={handleChange}
+            className="ml-2 p-2 border rounded"
           />
-        </label>
-        <label>
-          Destinations:
+        </div>
+
+        <div>
+          <label htmlFor="destinations">Destinations:</label>
           <input
             type="text"
+            id="destinations"
             name="destinations"
             value={formData.destinations}
             onChange={handleChange}
+            className="ml-2 p-2 border rounded"
           />
-        </label>
-        <label>
-          Notes:
+        </div>
+
+        <div>
+          <label htmlFor="jira">JIRA Ticket:</label>
           <input
             type="text"
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-          />
-        </label>
-        <label>
-          Jira:
-          <input
-            type="text"
+            id="jira"
             name="jira"
             value={formData.jira}
             onChange={handleChange}
+            className="ml-2 p-2 border rounded"
           />
-        </label>
-        <button type="submit">Submit Request</button>
+        </div>
+
+        <div>
+          <label htmlFor="notes">Notes:</label>
+          <Textarea
+            id="notes"
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Submit Request
+        </button>
       </form>
 
-      <h2>Previous Requests</h2>
-      <ul>
-        {requests.map((request) => (
-          <li key={request.id}>
-            <p>Action: {request.action}</p>
-            <p>Environment: {request.environment}</p>
-            <p>Status: {request.status}</p>
-            <p>Created At: {new Date(request.createdAt).toLocaleString()}</p>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-8">
+        <h2 className="text-xl font-bold">Recent Requests</h2>
+        <div className="space-y-4 mt-4">
+          {requests.map((request) => (
+            <div key={request.id} className="p-4 border rounded">
+              <p>Action: {request.action}</p>
+              <p>Environment: {request.environment}</p>
+              <p>Policy: {request.policy}</p>
+              <p>Source: {request.source}</p>
+              <p>Destinations: {request.destinations}</p>
+              <p>Status: {request.status}</p>
+              <p>Created: {new Date(request.createdAt).toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
-};
-
-export default App;
+}
