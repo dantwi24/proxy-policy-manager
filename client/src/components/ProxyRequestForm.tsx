@@ -15,6 +15,7 @@ interface ProxyRequest {
   jira: string;
   status: string;
   createdAt: string;
+  submittedAt: string; // Add submittedAt field
   history?: {
     timestamp: string;
     action: 'create' | 'edit' | 'delete';
@@ -36,6 +37,7 @@ export default function ProxyRequestForm() {
     jira: "",
     status: "pending",
     createdAt: new Date().toISOString(),
+    submittedAt: new Date().toISOString(), // Initialize submittedAt
     history: []
   });
   const [selectedRequest, setSelectedRequest] = useState<ProxyRequest | null>(null);
@@ -68,12 +70,14 @@ export default function ProxyRequestForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const currentDate = new Date().toISOString();
+
     if (isEditing && selectedRequest) {
       // Handle edit
       const updatedRequests = requests.map(req => {
         if (req.id === selectedRequest.id) {
           const newHistory = [...(req.history || []), {
-            timestamp: new Date().toISOString(),
+            timestamp: currentDate,
             action: 'edit',
             changes: {
               action: formData.action !== req.action ? formData.action : undefined,
@@ -85,7 +89,7 @@ export default function ProxyRequestForm() {
               jira: formData.jira !== req.jira ? formData.jira : undefined,
             }
           }];
-          return { ...formData, id: req.id, history: newHistory };
+          return { ...formData, id: req.id, submittedAt: currentDate, history: newHistory }; //update submittedAt on edit
         }
         return req;
       });
@@ -95,8 +99,9 @@ export default function ProxyRequestForm() {
       // Handle new request
       const newRequest = {
         ...formData,
+        submittedAt: currentDate,
         history: [{
-          timestamp: new Date().toISOString(),
+          timestamp: currentDate,
           action: 'create'
         }]
       };
@@ -114,7 +119,8 @@ export default function ProxyRequestForm() {
       notes: "",
       jira: "",
       status: "pending",
-      createdAt: new Date().toISOString(),
+      createdAt: currentDate,
+      submittedAt: currentDate,
       history: []
     });
     setSelectedRequest(null);
@@ -234,6 +240,7 @@ export default function ProxyRequestForm() {
                 jira: "",
                 status: "pending",
                 createdAt: new Date().toISOString(),
+                submittedAt: new Date().toISOString(),
                 history: []
               });
             }}
@@ -269,6 +276,7 @@ export default function ProxyRequestForm() {
                     <div className="flex justify-between items-start mb-2">
                       <div className="cursor-pointer flex-1" onClick={() => setSelectedRequest(req)}>
                         <p className="font-medium">{req.action} to {req.environment} - {req.policy}</p>
+                        <p className="text-sm">Submitted: {new Date(req.submittedAt).toLocaleString()}</p> {/* Added submittedAt display */}
                         <p className="text-sm">
                           JIRA: {req.jira && (
                             <a
@@ -341,6 +349,7 @@ export default function ProxyRequestForm() {
               {statusOptions.find(opt => opt.value === selectedRequest.status)?.label || "Unknown"}
             </Badge>
           </div>
+          <p><strong>Submitted:</strong> {new Date(selectedRequest.submittedAt).toLocaleString()}</p> {/* Added submittedAt display */}
           <p>
             <strong>JIRA Story #:</strong>{" "}
             {selectedRequest.jira && (
@@ -369,7 +378,7 @@ export default function ProxyRequestForm() {
                 {selectedRequest.history.map((change, index) => (
                   <li key={index} className="text-sm">
                     <p>
-                      <strong>{new Date(change.timestamp).toLocaleString()}</strong> - 
+                      <strong>{new Date(change.timestamp).toLocaleString()}</strong> -
                       {change.action === 'create' ? ' Request created' : ' Request edited'}
                     </p>
                     {change.changes && Object.entries(change.changes).map(([field, value]) => (
