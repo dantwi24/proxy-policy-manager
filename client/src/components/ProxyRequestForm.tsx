@@ -272,7 +272,7 @@ export default function ProxyRequestForm() {
         <input
           type="text"
           name="policy"
-          placeholder="Policy Name"
+          placeholder="Enter the policy name here"
           value={formData.policy}
           onChange={handleChange}
           className="w-full p-2 border rounded bg-background text-foreground"
@@ -295,7 +295,7 @@ export default function ProxyRequestForm() {
         ></textarea>
         <textarea
           name="notes"
-          placeholder="Notes"
+          placeholder="Add any additional notes or context here"
           value={formData.notes}
           onChange={handleChange}
           className="w-full p-2 border rounded bg-background text-foreground"
