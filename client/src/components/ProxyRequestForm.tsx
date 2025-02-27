@@ -2,12 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Trash2, Edit2, History, ChevronDown } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Search, Trash2, Edit2, History, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ProxyRequest {
   id: string;
@@ -486,10 +481,8 @@ export default function ProxyRequestForm() {
 
       {selectedRequest && (
         <div className="mt-4 p-4 border rounded bg-muted text-muted-foreground">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-bold">
-              {selectedRequest.action} - {selectedRequest.policy}
-            </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold">Request Details</h3>
             <Badge
               className={`${getStatusBadgeColor(selectedRequest.status)} text-white`}
             >
@@ -497,69 +490,71 @@ export default function ProxyRequestForm() {
                 ?.label || "Unknown"}
             </Badge>
           </div>
-          
-          <div className="text-sm space-y-1 mb-2">
-            <p>
-              <strong>Submitted:</strong>{" "}
-              {new Date(selectedRequest.submittedAt).toLocaleString()}
-              {selectedRequest.jira && (
-                <> | <strong>JIRA:</strong>{" "}
-                  <a
-                    href={getJiraUrl(selectedRequest.jira)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline"
-                  >
-                    {selectedRequest.jira}
-                  </a>
-                </>
-              )}
-            </p>
-            <p><strong>Environment:</strong> {selectedRequest.environment}</p>
-          </div>
-          
-          <Collapsible className="space-y-2">
-            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md p-1 text-sm font-medium hover:bg-muted">
-              <span>Details</span>
-              <ChevronDown className="h-4 w-4" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-1 text-sm pl-2">
-              {selectedRequest.source && (
-                <p><strong>Source:</strong> {selectedRequest.source}</p>
-              )}
-              <p><strong>Destinations:</strong> {selectedRequest.destinations}</p>
-              {selectedRequest.notes && (
-                <p><strong>Notes:</strong> {selectedRequest.notes}</p>
-              )}
-              <p><strong>Created:</strong> {new Date(selectedRequest.createdAt).toLocaleString()}</p>
-            </CollapsibleContent>
-          </Collapsible>
-          
-          {selectedRequest.history && selectedRequest.history.length > 1 && (
-            <Collapsible className="space-y-2 mt-2">
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md p-1 text-sm font-medium hover:bg-muted">
-                <span>History ({selectedRequest.history.length} changes)</span>
-                <ChevronDown className="h-4 w-4" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="text-xs pl-2">
-                <ul className="space-y-1">
-                  {selectedRequest.history.map((change, index) => (
-                    <li key={index}>
-                      <p>
-                        <strong>{new Date(change.timestamp).toLocaleString()}</strong>
-                        {change.action === "create" ? " - Created" : " - Edited"}
-                      </p>
-                      {change.changes &&
-                        Object.entries(change.changes).map(([field, value]) => (
-                          <p key={field} className="ml-2">
-                            • {field}: {value}
-                          </p>
-                        ))}
-                    </li>
-                  ))}
-                </ul>
-              </CollapsibleContent>
-            </Collapsible>
+          <p>
+            <strong>Submitted:</strong>{" "}
+            {new Date(selectedRequest.submittedAt).toLocaleString()}
+          </p>{" "}
+          {/* Added submittedAt display */}
+          <p>
+            <strong>JIRA Story #:</strong>{" "}
+            {selectedRequest.jira && (
+              <a
+                href={getJiraUrl(selectedRequest.jira)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                {selectedRequest.jira}
+              </a>
+            )}
+          </p>
+          <p>
+            <strong>Action:</strong> {selectedRequest.action}
+          </p>
+          <p>
+            <strong>Environment:</strong> {selectedRequest.environment}
+          </p>
+          <p>
+            <strong>Policy:</strong> {selectedRequest.policy}
+          </p>
+          <p>
+            <strong>Source:</strong> {selectedRequest.source}
+          </p>
+          <p>
+            <strong>Destinations:</strong> {selectedRequest.destinations}
+          </p>
+          <p>
+            <strong>Notes:</strong> {selectedRequest.notes}
+          </p>
+          <p>
+            <strong>Created:</strong>{" "}
+            {new Date(selectedRequest.createdAt).toLocaleString()}
+          </p>
+          {selectedRequest.history && selectedRequest.history.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-semibold mb-2">Change History</h4>
+              <ul className="space-y-2">
+                {selectedRequest.history.map((change, index) => (
+                  <li key={index} className="text-sm">
+                    <p>
+                      <strong>
+                        {new Date(change.timestamp).toLocaleString()}
+                      </strong>{" "}
+                      -
+                      {change.action === "create"
+                        ? " Request created"
+                        : " Request edited"}
+                    </p>
+                    {change.changes &&
+                      Object.entries(change.changes).map(([field, value]) => (
+                        <p key={field} className="ml-4 text-xs">
+                          • Changed {field} to: {value}
+                        </p>
+                      ))}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}
