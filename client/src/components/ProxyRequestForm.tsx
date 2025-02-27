@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Trash2, Edit2, History } from "lucide-react";
 
 interface ProxyRequest {
+  id: string;
   action: string;
   environment: string;
   policy: string;
@@ -14,12 +15,18 @@ interface ProxyRequest {
   jira: string;
   status: string;
   createdAt: string;
+  history?: {
+    timestamp: string;
+    action: 'create' | 'edit' | 'delete';
+    changes?: Partial<ProxyRequest>;
+  }[];
 }
 
 export default function ProxyRequestForm() {
   const [requests, setRequests] = useState<ProxyRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState<ProxyRequest>({
+    id: crypto.randomUUID(),
     action: "add",
     environment: "Cloud",
     policy: "",
@@ -29,14 +36,14 @@ export default function ProxyRequestForm() {
     jira: "",
     status: "pending",
     createdAt: new Date().toISOString(),
+    history: []
   });
-  const [selectedRequest, setSelectedRequest] = useState<ProxyRequest | null>(
-    null,
-  );
+  const [selectedRequest, setSelectedRequest] = useState<ProxyRequest | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const statusOptions = [
     { value: "pending", label: "Pending", color: "bg-yellow-500" },
-    { value: "implemented", label: "Implemented", color: "bg-green-500" },
+    { value: "implemented", label: "Implemented", color: "bg-green-500" }
   ];
 
   const getJiraUrl = (jiraId: string) => {
@@ -55,28 +62,50 @@ export default function ProxyRequestForm() {
     }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("draftRequest", JSON.stringify(formData));
-  }, [formData]);
-
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newRequest = {
-      ...formData,
-      createdAt: new Date().toISOString(),
-    };
-    const newRequests = [...requests, newRequest];
-    setRequests(newRequests);
-    localStorage.setItem("proxyRequests", JSON.stringify(newRequests));
+    if (isEditing && selectedRequest) {
+      // Handle edit
+      const updatedRequests = requests.map(req => {
+        if (req.id === selectedRequest.id) {
+          const newHistory = [...(req.history || []), {
+            timestamp: new Date().toISOString(),
+            action: 'edit',
+            changes: {
+              action: formData.action !== req.action ? formData.action : undefined,
+              environment: formData.environment !== req.environment ? formData.environment : undefined,
+              policy: formData.policy !== req.policy ? formData.policy : undefined,
+              source: formData.source !== req.source ? formData.source : undefined,
+              destinations: formData.destinations !== req.destinations ? formData.destinations : undefined,
+              notes: formData.notes !== req.notes ? formData.notes : undefined,
+              jira: formData.jira !== req.jira ? formData.jira : undefined,
+            }
+          }];
+          return { ...formData, id: req.id, history: newHistory };
+        }
+        return req;
+      });
+      setRequests(updatedRequests);
+      setIsEditing(false);
+    } else {
+      // Handle new request
+      const newRequest = {
+        ...formData,
+        history: [{
+          timestamp: new Date().toISOString(),
+          action: 'create'
+        }]
+      };
+      setRequests([...requests, newRequest]);
+    }
+
+    localStorage.setItem("proxyRequests", JSON.stringify(requests));
     setFormData({
+      id: crypto.randomUUID(),
       action: "add",
       environment: "Cloud",
       policy: "",
@@ -86,34 +115,70 @@ export default function ProxyRequestForm() {
       jira: "",
       status: "pending",
       createdAt: new Date().toISOString(),
+      history: []
     });
+    setSelectedRequest(null);
   };
 
-  const handleSelectRequest = (index: number) => {
-    setSelectedRequest(requests[index]);
+  const handleEdit = (request: ProxyRequest) => {
+    setFormData(request);
+    setSelectedRequest(request);
+    setIsEditing(true);
   };
 
-  const handleStatusChange = (requestIndex: number, newStatus: string) => {
-    const updatedRequests = [...requests];
-    updatedRequests[requestIndex] = {
-      ...updatedRequests[requestIndex],
-      status: newStatus,
-    };
+  const handleDelete = (requestId: string) => {
+    const updatedRequests = requests.filter(req => req.id !== requestId);
+    setRequests(updatedRequests);
+    localStorage.setItem("proxyRequests", JSON.stringify(updatedRequests));
+    if (selectedRequest?.id === requestId) {
+      setSelectedRequest(null);
+    }
+  };
+
+  const handleStatusChange = (requestId: string, newStatus: string) => {
+    const updatedRequests = requests.map(req => {
+      if (req.id === requestId) {
+        const newHistory = [...(req.history || []), {
+          timestamp: new Date().toISOString(),
+          action: 'edit',
+          changes: { status: newStatus }
+        }];
+        return { ...req, status: newStatus, history: newHistory };
+      }
+      return req;
+    });
     setRequests(updatedRequests);
     localStorage.setItem("proxyRequests", JSON.stringify(updatedRequests));
 
-    if (selectedRequest && selectedRequest === requests[requestIndex]) {
-      setSelectedRequest(updatedRequests[requestIndex]);
+    if (selectedRequest?.id === requestId) {
+      setSelectedRequest(updatedRequests.find(r => r.id === requestId) || null);
     }
   };
 
   const getStatusBadgeColor = (status: string) => {
-    return (
-      statusOptions.find((opt) => opt.value === status)?.color || "bg-gray-500"
-    );
+    return statusOptions.find(opt => opt.value === status)?.color || "bg-gray-500";
   };
 
-  const filteredRequests = requests.filter((request) => {
+  const groupRequestsByMonth = (requests: ProxyRequest[]) => {
+    const grouped = requests.reduce((acc, request) => {
+      const date = new Date(request.createdAt);
+      const monthYear = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+      if (!acc[monthYear]) {
+        acc[monthYear] = [];
+      }
+      acc[monthYear].push(request);
+      return acc;
+    }, {} as Record<string, ProxyRequest[]>);
+
+    // Sort months in reverse chronological order
+    return Object.entries(grouped).sort((a, b) => {
+      const dateA = new Date(a[0]);
+      const dateB = new Date(b[0]);
+      return dateB.getTime() - dateA.getTime();
+    });
+  };
+
+  const filteredRequests = requests.filter(request => {
     const searchLower = searchQuery.toLowerCase();
     return (
       request.policy.toLowerCase().includes(searchLower) ||
@@ -126,76 +191,57 @@ export default function ProxyRequestForm() {
     );
   });
 
+  const groupedRequests = groupRequestsByMonth(filteredRequests);
+
   return (
     <Card className="p-6 bg-card text-card-foreground">
-      <h2 className="text-xl font-bold mb-4">Proxy Policy Change Request</h2>
+      <h2 className="text-xl font-bold mb-4">
+        {isEditing ? "Edit Request" : "Proxy Policy Change Request"}
+      </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <select
-          name="action"
-          value={formData.action}
-          onChange={handleChange}
-          className="w-full p-2 border rounded bg-background text-foreground"
-        >
+        <select name="action" value={formData.action} onChange={handleChange} className="w-full p-2 border rounded bg-background text-foreground">
           <option value="add">Add</option>
           <option value="remove">Remove</option>
           <option value="modify">Modify</option>
           <option value="block">Block</option>
         </select>
-        <select
-          name="environment"
-          value={formData.environment}
-          onChange={handleChange}
-          className="w-full p-2 border rounded bg-background text-foreground"
-        >
+        <select name="environment" value={formData.environment} onChange={handleChange} className="w-full p-2 border rounded bg-background text-foreground">
           <option value="Cloud">Sophos</option>
           <option value="Ent Proxy/Cloud SWG">Ent Proxy/Cloud SWG</option>
         </select>
-        <input
-          type="text"
-          name="policy"
-          placeholder="Policy Name"
-          value={formData.policy}
-          onChange={handleChange}
-          className="w-full p-2 border rounded bg-background text-foreground"
-          required
-        />
-        <textarea
-          type="text"
-          name="source"
-          placeholder="Sources (optional)"
-          value={formData.source}
-          onChange={handleChange}
-          className="w-full p-2 border rounded bg-background text-foreground"
-        ></textarea>
-        <textarea
-          name="destinations"
-          placeholder="Destinations"
-          value={formData.destinations}
-          onChange={handleChange}
-          className="w-full p-2 border rounded bg-background text-foreground"
-          required
-        ></textarea>
-        <textarea
-          name="notes"
-          placeholder="Notes"
-          value={formData.notes}
-          onChange={handleChange}
-          className="w-full p-2 border rounded bg-background text-foreground"
-        ></textarea>
-        <input
-          type="text"
-          name="jira"
-          placeholder="JIRA Story #"
-          value={formData.jira}
-          onChange={handleChange}
-          className="w-full p-2 border rounded bg-background text-foreground"
-        />
-        <button
-          type="submit"
-          className="w-full p-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
-        >
-          Submit Request
+        <input type="text" name="policy" placeholder="Policy Name" value={formData.policy} onChange={handleChange} className="w-full p-2 border rounded bg-background text-foreground" required />
+        <textarea name="source" placeholder="Sources (optional)" value={formData.source} onChange={handleChange} className="w-full p-2 border rounded bg-background text-foreground"></textarea>
+        <textarea name="destinations" placeholder="Destinations" value={formData.destinations} onChange={handleChange} className="w-full p-2 border rounded bg-background text-foreground" required></textarea>
+        <textarea name="notes" placeholder="Notes" value={formData.notes} onChange={handleChange} className="w-full p-2 border rounded bg-background text-foreground"></textarea>
+        <input type="text" name="jira" placeholder="JIRA Story #" value={formData.jira} onChange={handleChange} className="w-full p-2 border rounded bg-background text-foreground" />
+        <button type="submit" className="w-full p-2 bg-primary text-primary-foreground rounded hover:bg-primary/90">
+          {isEditing ? "Save Changes" : "Submit Request"}
         </button>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsEditing(false);
+              setSelectedRequest(null);
+              setFormData({
+                id: crypto.randomUUID(),
+                action: "add",
+                environment: "Cloud",
+                policy: "",
+                source: "",
+                destinations: "",
+                notes: "",
+                jira: "",
+                status: "pending",
+                createdAt: new Date().toISOString(),
+                history: []
+              });
+            }}
+            className="w-full p-2 bg-gray-500 text-white rounded hover:bg-gray-600 mt-2"
+          >
+            Cancel Edit
+          </button>
+        )}
       </form>
 
       <div className="mt-6 space-y-4">
@@ -213,67 +259,86 @@ export default function ProxyRequestForm() {
           </div>
         </div>
 
-        <ul className="space-y-2">
-          {filteredRequests.map((req, index) => (
-            <li
-              key={index}
-              className="p-4 border rounded bg-muted text-muted-foreground hover:bg-muted/80"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div
-                  className="cursor-pointer"
-                  onClick={() => handleSelectRequest(index)}
-                >
-                  <p className="font-medium">
-                    {req.action} to {req.environment} - {req.policy}
-                  </p>
-                  <p className="text-sm">
-                    JIRA:{" "}
-                    {req.jira && (
-                      <a
-                        href={getJiraUrl(req.jira)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {req.jira}
-                      </a>
-                    )}
-                  </p>
-                </div>
-                <select
-                  value={req.status}
-                  onChange={(e) => handleStatusChange(index, e.target.value)}
-                  className="ml-2 p-1 rounded bg-background text-foreground border"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Badge
-                className={`${getStatusBadgeColor(req.status)} text-white`}
-              >
-                {statusOptions.find((opt) => opt.value === req.status)?.label ||
-                  "Unknown"}
-              </Badge>
-            </li>
+        <div className="space-y-6">
+          {groupedRequests.map(([month, monthRequests]) => (
+            <div key={month} className="space-y-2">
+              <h4 className="font-semibold text-lg">{month}</h4>
+              <ul className="space-y-2">
+                {monthRequests.map((req) => (
+                  <li key={req.id} className="p-4 border rounded bg-muted text-muted-foreground hover:bg-muted/80">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="cursor-pointer flex-1" onClick={() => setSelectedRequest(req)}>
+                        <p className="font-medium">{req.action} to {req.environment} - {req.policy}</p>
+                        <p className="text-sm">
+                          JIRA: {req.jira && (
+                            <a
+                              href={getJiraUrl(req.jira)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {req.jira}
+                            </a>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={req.status}
+                          onChange={(e) => handleStatusChange(req.id, e.target.value)}
+                          className="p-1 rounded bg-background text-foreground border"
+                        >
+                          {statusOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleEdit(req)}
+                          className="p-1 text-blue-500 hover:text-blue-600"
+                          title="Edit"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(req.id)}
+                          className="p-1 text-red-500 hover:text-red-600"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={`${getStatusBadgeColor(req.status)} text-white`}>
+                        {statusOptions.find(opt => opt.value === req.status)?.label || "Unknown"}
+                      </Badge>
+                      {req.history && req.history.length > 1 && (
+                        <button
+                          onClick={() => setSelectedRequest(req)}
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center space-x-1"
+                        >
+                          <History className="h-3 w-3" />
+                          <span>{req.history.length} changes</span>
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
 
       {selectedRequest && (
         <div className="mt-4 p-4 border rounded bg-muted text-muted-foreground">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold">Request Details</h3>
-            <Badge
-              className={`${getStatusBadgeColor(selectedRequest.status)} text-white`}
-            >
-              {statusOptions.find((opt) => opt.value === selectedRequest.status)
-                ?.label || "Unknown"}
+            <Badge className={`${getStatusBadgeColor(selectedRequest.status)} text-white`}>
+              {statusOptions.find(opt => opt.value === selectedRequest.status)?.label || "Unknown"}
             </Badge>
           </div>
           <p>
@@ -289,28 +354,34 @@ export default function ProxyRequestForm() {
               </a>
             )}
           </p>
-          <p>
-            <strong>Action:</strong> {selectedRequest.action}
-          </p>
-          <p>
-            <strong>Environment:</strong> {selectedRequest.environment}
-          </p>
-          <p>
-            <strong>Policy:</strong> {selectedRequest.policy}
-          </p>
-          <p>
-            <strong>Source:</strong> {selectedRequest.source}
-          </p>
-          <p>
-            <strong>Destinations:</strong> {selectedRequest.destinations}
-          </p>
-          <p>
-            <strong>Notes:</strong> {selectedRequest.notes}
-          </p>
-          <p>
-            <strong>Created:</strong>{" "}
-            {new Date(selectedRequest.createdAt).toLocaleString()}
-          </p>
+          <p><strong>Action:</strong> {selectedRequest.action}</p>
+          <p><strong>Environment:</strong> {selectedRequest.environment}</p>
+          <p><strong>Policy:</strong> {selectedRequest.policy}</p>
+          <p><strong>Source:</strong> {selectedRequest.source}</p>
+          <p><strong>Destinations:</strong> {selectedRequest.destinations}</p>
+          <p><strong>Notes:</strong> {selectedRequest.notes}</p>
+          <p><strong>Created:</strong> {new Date(selectedRequest.createdAt).toLocaleString()}</p>
+
+          {selectedRequest.history && selectedRequest.history.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-semibold mb-2">Change History</h4>
+              <ul className="space-y-2">
+                {selectedRequest.history.map((change, index) => (
+                  <li key={index} className="text-sm">
+                    <p>
+                      <strong>{new Date(change.timestamp).toLocaleString()}</strong> - 
+                      {change.action === 'create' ? ' Request created' : ' Request edited'}
+                    </p>
+                    {change.changes && Object.entries(change.changes).map(([field, value]) => (
+                      <p key={field} className="ml-4 text-xs">
+                        • Changed {field} to: {value}
+                      </p>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </Card>
