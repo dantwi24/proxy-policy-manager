@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Trash2, Edit2, History, ChevronDown, ChevronUp, GitHub } from "lucide-react";
-import { formatRequestAsMarkdown, pushToGitHub } from "@/services/githubService";
+import { Search, Trash2, Edit2, History, ChevronDown, ChevronUp} from "lucide-react";
+//import { formatRequestAsMarkdown, pushToGitHub } from "@/services/githubService";
 
 interface ProxyRequest {
   id: string;
@@ -200,7 +200,7 @@ export default function ProxyRequestForm() {
       );
     }
   };
-  
+ /**
   const [githubPushStatus, setGithubPushStatus] = useState<'idle' | 'pushing' | 'success' | 'error'>('idle');
   
   const handlePushToGitHub = async (request: ProxyRequest) => {
@@ -222,7 +222,7 @@ export default function ProxyRequestForm() {
       setGithubPushStatus('error');
     }
   };
-
+*/ 
   const getStatusBadgeColor = (status: string) => {
     return (
       statusOptions.find((opt) => opt.value === status)?.color || "bg-gray-500"

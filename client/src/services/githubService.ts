@@ -1,7 +1,7 @@
 
-/**
+/*
  * GitHub API integration service
- */
+ /
 
 interface GitHubConfig {
   owner: string;
@@ -80,7 +80,7 @@ export async function pushToGitHub(
 
 /**
  * Format a single proxy request to markdown
- */
+ 
 export function formatRequestAsMarkdown(request: any): string {
   const timestamp = new Date().toISOString();
   
@@ -96,3 +96,4 @@ export function formatRequestAsMarkdown(request: any): string {
 
 ---`;
 }
+
