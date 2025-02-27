@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Trash2, Edit2, History, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Trash2, Edit2, History, ChevronDown, ChevronUp, GitHub } from "lucide-react";
+import { formatRequestAsMarkdown, pushToGitHub } from "@/services/githubService";
 
 interface ProxyRequest {
   id: string;
@@ -197,6 +198,28 @@ export default function ProxyRequestForm() {
       setSelectedRequest(
         updatedRequests.find((r) => r.id === requestId) || null,
       );
+    }
+  };
+  
+  const [githubPushStatus, setGithubPushStatus] = useState<'idle' | 'pushing' | 'success' | 'error'>('idle');
+  
+  const handlePushToGitHub = async (request: ProxyRequest) => {
+    if (!request) return;
+    
+    setGithubPushStatus('pushing');
+    try {
+      const markdown = formatRequestAsMarkdown(request);
+      const success = await pushToGitHub(markdown);
+      
+      setGithubPushStatus(success ? 'success' : 'error');
+      
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        setGithubPushStatus('idle');
+      }, 3000);
+    } catch (error) {
+      console.error('Failed to push to GitHub:', error);
+      setGithubPushStatus('error');
     }
   };
 
@@ -483,12 +506,33 @@ export default function ProxyRequestForm() {
         <div className="mt-4 p-4 border rounded bg-muted text-muted-foreground">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold">Request Details</h3>
-            <Badge
-              className={`${getStatusBadgeColor(selectedRequest.status)} text-white`}
-            >
-              {statusOptions.find((opt) => opt.value === selectedRequest.status)
-                ?.label || "Unknown"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePushToGitHub(selectedRequest)}
+                disabled={githubPushStatus === 'pushing'}
+                className={`p-1 rounded text-sm flex items-center gap-1 ${
+                  githubPushStatus === 'pushing' ? 'opacity-50 cursor-wait' : ''
+                } ${
+                  githubPushStatus === 'success' ? 'bg-green-100 text-green-800' : 
+                  githubPushStatus === 'error' ? 'bg-red-100 text-red-800' : 
+                  'hover:bg-muted/80'
+                }`}
+                title="Push to GitHub"
+              >
+                <GitHub className="h-4 w-4" />
+                <span>
+                  {githubPushStatus === 'pushing' ? 'Pushing...' : 
+                   githubPushStatus === 'success' ? 'Pushed!' : 
+                   githubPushStatus === 'error' ? 'Failed!' : 'Push to GitHub'}
+                </span>
+              </button>
+              <Badge
+                className={`${getStatusBadgeColor(selectedRequest.status)} text-white`}
+              >
+                {statusOptions.find((opt) => opt.value === selectedRequest.status)
+                  ?.label || "Unknown"}
+              </Badge>
+            </div>
           </div>
           <p>
             <strong>Submitted:</strong>{" "}
