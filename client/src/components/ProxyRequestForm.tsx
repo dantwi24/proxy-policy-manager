@@ -251,6 +251,7 @@ export default function ProxyRequestForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <select
           name="action"
+          placeholder="Select Action"
           value={formData.action}
           onChange={handleChange}
           className="w-full p-2 border rounded bg-background text-foreground"
@@ -262,6 +263,7 @@ export default function ProxyRequestForm() {
         </select>
         <select
           name="environment"
+          placeholder="Environment"
           value={formData.environment}
           onChange={handleChange}
           className="w-full p-2 border rounded bg-background text-foreground"
